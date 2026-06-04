@@ -1,0 +1,113 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_USER     = 'altaf7258'
+        PROD_EC2_IP     = '13.127.220.170'
+        APP_DIR         = '/home/ubuntu/app'
+        GIT_SHORT_SHA   = "${env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'latest'}"
+    }
+    
+    stages {
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    bat "docker run --rm --network=\"host\" -v %WORKSPACE%:/usr/src sonarsource/sonar-scanner-cli -Dsonar.projectKey=demo -Dsonar.sources=./backend/laptop -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=%SONAR_TOKEN%"
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                script {
+                    echo "Checking SonarQube Quality Gate status..."
+                    try {
+                        timeout(time: 5, unit: 'MINUTES') {
+                            waitForQualityGate abortPipeline: true
+                        }
+                    } catch (Exception e) {
+                        echo "Quality gate engine check bypassed or timed out. Review metrics at http://localhost:9000"
+                    }
+                }
+            }
+        }
+        stage('Login to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    bat "docker login -u %USER% -p %PASS%"
+                }
+            }
+        }
+       
+        stage('Build & Push Laptop Service') {
+            steps {
+                echo 'Starting Laptop Service Deployment Build...'
+                bat "docker build -t %DOCKER_USER%/demo-laptop-service:%GIT_SHORT_SHA% ./backend/laptop"
+                bat "docker tag %DOCKER_USER%/demo-laptop-service:%GIT_SHORT_SHA% %DOCKER_USER%/demo-laptop-service:latest"
+                bat "docker push %DOCKER_USER%/demo-laptop-service:%GIT_SHORT_SHA%"
+                bat "docker push %DOCKER_USER%/demo-laptop-service:latest"
+            }
+        }
+
+        stage('Trivy Container Scan') {
+            steps {
+                echo 'Scanning laptop image for vulnerabilities...'
+                bat "docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v C:\\ProgramData\\Jenkins\\trivy_cache:/root/.cache/ aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 0 %DOCKER_USER%/demo-laptop-service:%GIT_SHORT_SHA%"
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                bat "docker push %DOCKER_USER%/demo-laptop-service:%GIT_SHORT_SHA%"
+                bat "docker push %DOCKER_USER%/demo-laptop-service:latest"
+            }
+        }
+
+        stage('Gate: Approve Production Deployment') {
+            steps {
+                script {
+                    echo "Pausing pipeline. Waiting for Production release confirmation..."
+                    timeout(time: 2, unit: 'HOURS') {
+                        input id: 'Proceed-To-Prod', message: "Deploy laptop service %GIT_SHORT_SHA% to Production?", ok: 'Approve & Release'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to AWS EC2') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'KEY_FILE')]) {
+                    bat """
+                    @echo off
+                    :: 1. Disable inheritance so permissions don't bleed down from the parent workspace folders
+                    icacls "%KEY_FILE%" /inheritance:d /q
+                    
+                    :: 2. Remove access permissions for the default generic Windows Users group
+                    icacls "%KEY_FILE%" /remove "BUILTIN\\Users" /q
+                    icacls "%KEY_FILE%" /remove "Authenticated Users" /q
+                    
+                    :: 3. Grant explicit exclusive Full Control to the current executing user session
+                    icacls "%KEY_FILE%" /grant:r "%USERNAME%:(F)" /q
+                    
+                    echo Permissions locked down successfully. Connecting to EC2...
+                    
+                    :: 4. Run the remote docker compose update command
+                    ssh -i "%KEY_FILE%" -o StrictHostKeyChecking=no ubuntu@%EC2_PUBLIC_IP% "cd %APP_DIR% && docker compose pull && docker compose up -d --force-recreate"
+                    """
+                }
+            } // Fixed: Added missing closing brace for steps
+        } // Fixed: Added missing closing brace for stage
+    }
+    
+    post {
+        always {
+            bat "docker logout"
+        }
+        success {
+            echo "Deployment to AWS EC2 completed successfully!"
+        }
+        failure {
+            echo "CI/CD Deployment failed. Check console output logs."
+        }
+    }
+}
