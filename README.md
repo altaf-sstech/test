@@ -7,45 +7,6 @@ docker run -d -p 80:80 frontend
 # List running containers
 docker ps
 
----
-
-## Local development
-
-### Frontend
-
-```powershell
-cd frontend
-npm install
-npm start
-```
-
-### Backend services
-
-For each service, set `DATABASE_URL` and run from its folder.
-
-```powershell
-cd backend\user
-npm install
-$env:DATABASE_URL="postgres://user:pass@host:port/dbname"
-npm start
-```
-
-```powershell
-cd backend\content
-npm install
-$env:DATABASE_URL="postgres://user:pass@host:port/dbname"
-npm start
-```
-
-```powershell
-cd backend\laptop
-npm install
-$env:DATABASE_URL="postgres://user:pass@host:port/dbname"
-npm start
-```
-
-> Note: `backend/laptop` already includes a `start` script, and `backend/user`/`backend/content` now also support `npm start`.
-
 # List all containers (running + stopped)
 docker ps -a
 
