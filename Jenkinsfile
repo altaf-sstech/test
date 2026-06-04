@@ -28,6 +28,10 @@ pipeline {
                     echo Checking system requirements...
                     echo.
                     
+                    echo ✓ Git Version:
+                    git --version
+                    echo.
+                    
                     echo ✓ Node Version:
                     node --version
                     echo.
@@ -36,16 +40,8 @@ pipeline {
                     npm --version
                     echo.
                     
-                    echo ✓ Docker Version:
-                    docker --version
-                    echo.
-                    
-                    echo ✓ Docker Compose Version:
-                    docker-compose --version
-                    echo.
-                    
-                    echo ✓ Git Version:
-                    git --version
+                    echo ✓ PM2 Version:
+                    pm2 --version || echo "PM2 not installed yet"
                     echo.
                     
                     echo All pre-flight checks passed!
@@ -134,93 +130,68 @@ pipeline {
             }
         }
         
-        stage('Build Docker Images (Parallel)') {
-            parallel {
-                stage('Build Frontend Image') {
-                    steps {
-                        echo '🐳 Building Frontend Docker Image...'
-                        bat '''
-                            docker build -t demo-frontend:latest ./frontend
-                            echo Frontend image built successfully!
-                            docker images | findstr demo-frontend
-                        '''
-                    }
-                }
-                
-                stage('Build Content Service Image') {
-                    steps {
-                        echo '🐳 Building Content Service Docker Image...'
-                        bat '''
-                            docker build -t demo-content-service:latest ./backend/content
-                            echo Content service image built successfully!
-                            docker images | findstr demo-content-service
-                        '''
-                    }
-                }
-                
-                stage('Build User Service Image') {
-                    steps {
-                        echo '🐳 Building User Service Docker Image...'
-                        bat '''
-                            docker build -t demo-user-service:latest ./backend/user
-                            echo User service image built successfully!
-                            docker images | findstr demo-user-service
-                        '''
-                    }
-                }
-            }
-        }
-        
-        stage('Verify Local Images') {
-            steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '        VERIFYING LOCALLY BUILT DOCKER IMAGES           '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo.
-                    echo All built Docker images:
-                    docker images | findstr demo-
-                    
-                    echo.
-                    echo Images ready for local deployment!
-                '''
-            }
-        }
         
         stage('Deploy to Local Environment') {
             when {
-                branch 'main'
+                branch 'test'
             }
             steps {
                 echo '════════════════════════════════════════════════════════'
                 echo '      DEPLOYING TO LOCAL WINDOWS ENVIRONMENT            '
                 echo '════════════════════════════════════════════════════════'
                 bat '''
+                    echo Installing PM2 if needed...
+                    npm install -g pm2 || echo PM2 already installed
+                    
                     echo Creating deployment directories...
                     if not exist %DEPLOYMENT_DIR% mkdir %DEPLOYMENT_DIR%
+                    if not exist %DEPLOYMENT_DIR%\frontend mkdir %DEPLOYMENT_DIR%\frontend
+                    if not exist %DEPLOYMENT_DIR%\content mkdir %DEPLOYMENT_DIR%\content
+                    if not exist %DEPLOYMENT_DIR%\user mkdir %DEPLOYMENT_DIR%\user
                     
-                    echo.
-                    echo Stopping existing containers...
-                    docker-compose -f %COMPOSE_FILE% down || echo No running containers
+                    echo Copying frontend build...
+                    cd frontend
+                    npm install
+                    npm run build
+                    if exist %DEPLOYMENT_DIR%\frontend\build rmdir /s /q %DEPLOYMENT_DIR%\frontend\build
+                    xcopy build %DEPLOYMENT_DIR%\frontend\build /E /I /Y
                     
-                    echo.
-                    echo Removing old images...
-                    docker image prune -f --filter "until=72h" || echo Cleanup completed
+                    echo Deploying content service...
+                    xcopy ..\backend\content %DEPLOYMENT_DIR%\content /E /I /Y
+                    cd %DEPLOYMENT_DIR%\content
+                    npm install --production
+                    pm2 stop content-service || echo No existing content-service process
+                    pm2 delete content-service || echo No existing content-service process
+                    set PORT=5001
+                    set NODE_ENV=production
+                    set DATABASE_URL=postgres://myuser:mypassword@localhost:5432/mydb
+                    pm2 start index.js --name content-service --env production
                     
-                    echo.
-                    echo Starting all services with docker-compose...
-                    docker-compose -f %COMPOSE_FILE% up -d
+                    echo Deploying user service...
+                    xcopy ..\backend\user %DEPLOYMENT_DIR%\user /E /I /Y
+                    cd %DEPLOYMENT_DIR%\user
+                    npm install --production
+                    pm2 stop user-service || echo No existing user-service process
+                    pm2 delete user-service || echo No existing user-service process
+                    set PORT=5002
+                    set NODE_ENV=production
+                    set DATABASE_URL=postgres://myuser:mypassword@localhost:5432/mydb
+                    pm2 start index.js --name user-service --env production
                     
-                    echo.
-                    echo Deployment completed! Waiting for services to stabilize...
-                    timeout /t 10 /nobreak
+                    echo Deploying frontend static server...
+                    pm2 stop frontend || echo No existing frontend process
+                    pm2 delete frontend || echo No existing frontend process
+                    pm2 serve %DEPLOYMENT_DIR%\frontend\build 3000 --name frontend --spa
+                    pm2 save
+                    
+                    echo Deployment completed!
                 '''
             }
         }
         
         stage('Health Checks') {
             when {
-                branch 'main'
+                branch 'test'
             }
             steps {
                 echo '════════════════════════════════════════════════════════'
@@ -235,11 +206,11 @@ pipeline {
                             
                             echo.
                             echo ✓ Content Service Health Check...
-                            curl -f http://localhost:5001/health || exit /b 1
+                            curl -f http://localhost:5001/content/health || exit /b 1
                             
                             echo.
                             echo ✓ User Service Health Check...
-                            curl -f http://localhost:5002/health || exit /b 1
+                            curl -f http://localhost:5002/auth/health || exit /b 1
                             
                             echo.
                             echo All health checks passed!
@@ -251,22 +222,21 @@ pipeline {
         
         stage('Service Status & Logs') {
             when {
-                branch 'main'
+                branch 'test'
             }
             steps {
                 echo '════════════════════════════════════════════════════════'
-                echo '           DOCKER CONTAINER STATUS                      '
+                echo '            LOCAL SERVICE STATUS                       '
                 echo '════════════════════════════════════════════════════════'
                 bat '''
-                    echo Running containers:
-                    docker-compose -f %COMPOSE_FILE% ps
+                    echo Running PM2 processes:
+                    pm2 status || echo PM2 not available
                     
                     echo.
                     echo Service URLs:
                     echo Frontend:       http://localhost:3000
                     echo Content API:    http://localhost:5001
                     echo User API:       http://localhost:5002
-                    echo SonarQube:      http://localhost:9000
                 '''
             }
         }
@@ -275,11 +245,9 @@ pipeline {
             steps {
                 echo '🧹 Cleaning up build artifacts...'
                 bat '''
-                    echo Removing old unused images (> 24 hours)...
-                    docker image prune -f --filter "until=24h" || echo No images to prune
-                    
-                    echo Listing active images:
-                    docker images | findstr demo-
+                    echo Clearing PM2 logs and cache...
+                    pm2 flush || echo No PM2 logs to flush
+                    pm2 save || echo PM2 save skipped
                 '''
             }
         }
@@ -307,8 +275,8 @@ Services deployed and running:
   • Content API:     http://localhost:5001
   • User API:        http://localhost:5002
   
-Check docker-compose logs:
-  docker-compose logs -f
+Check PM2 status:
+  pm2 status
             '''
         }
         
@@ -320,9 +288,9 @@ Check docker-compose logs:
 
 Troubleshooting:
   1. Check Jenkins console output above
-  2. View service logs: docker-compose logs
+  2. View service logs: pm2 logs
   3. Verify ports availability: netstat -ano
-  4. Check Docker daemon status
+  4. Confirm local database is running and reachable
             '''
         }
         
