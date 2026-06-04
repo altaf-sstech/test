@@ -13,11 +13,6 @@ function App() {
   const [body, setBody] = useState('');
   const [posts, setPosts] = useState([]);
   const [users, setUsers] = useState([]);
-  const [laptops, setLaptops] = useState([]);
-  const [laptopBrand, setLaptopBrand] = useState('');
-  const [laptopModel, setLaptopModel] = useState('');
-  const [laptopSpecs, setLaptopSpecs] = useState('');
-  const [laptopPrice, setLaptopPrice] = useState('');
   const [contentMsg, setContentMsg] = useState('');
 
   // Fetch all content posts on mount
@@ -41,15 +36,7 @@ function App() {
     }
   };
 
-  const fetchLaptops = async () => {
-    try {
-      const res = await fetch(`${API_BASE.LAPTOP}/laptop/items`);
-      const data = await res.json();
-      if (res.ok) setLaptops(data);
-    } catch (err) {
-      console.error('Error fetching laptops:', err);
-    }
-  };
+
 
   const handleDeleteUser = async (id) => {
     if (!window.confirm('Delete this user?')) return;
@@ -85,26 +72,12 @@ function App() {
     }
   };
 
-  const handleDeleteLaptop = async (id) => {
-    if (!window.confirm('Delete this laptop?')) return;
-    try {
-      const res = await fetch(`${API_BASE.LAPTOP}/laptop/items/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchLaptops();
-      } else {
-        const data = await res.json();
-        alert(data.error || 'Failed to delete laptop');
-      }
-    } catch (err) {
-      console.error('Error deleting laptop:', err);
-      alert('Could not connect to Laptop Service');
-    }
-  };
+  
 
   useEffect(() => {
     fetchPosts();
     fetchUsers();
-    fetchLaptops();
+    
   }, []);
 
   // Handle User Registration
@@ -152,31 +125,7 @@ function App() {
     }
   };
 
-  // Handle Laptop Creation
-  const handleCreateLaptop = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = { brand: laptopBrand, model: laptopModel, specs: laptopSpecs, price: laptopPrice || null };
-      const res = await fetch(`${API_BASE.LAPTOP}/laptop/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setLaptopBrand('');
-        setLaptopModel('');
-        setLaptopSpecs('');
-        setLaptopPrice('');
-        fetchLaptops();
-      } else {
-        alert(data.error || 'Failed to create laptop');
-      }
-    } catch (err) {
-      console.error('Error creating laptop:', err);
-      alert('Could not connect to Laptop Service');
-    }
-  };
+
 
   return (
     <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
@@ -219,46 +168,7 @@ function App() {
         </section>
       </div>
 
-      {/* Laptop Service */}
-      <section style={{ marginTop: '30px', background: '#fff4e6', padding: '20px', borderRadius: '8px' }}>
-        <h2>Laptop Service</h2>
-        <form onSubmit={handleCreateLaptop} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
-            <label>Brand</label><br />
-            <input value={laptopBrand} onChange={e => setLaptopBrand(e.target.value)} required style={{ padding: '6px' }} />
-          </div>
-          <div>
-            <label>Model</label><br />
-            <input value={laptopModel} onChange={e => setLaptopModel(e.target.value)} required style={{ padding: '6px' }} />
-          </div>
-          <div>
-            <label>Specs</label><br />
-            <input value={laptopSpecs} onChange={e => setLaptopSpecs(e.target.value)} style={{ padding: '6px' }} />
-          </div>
-          <div>
-            <label>Price</label><br />
-            <input value={laptopPrice} onChange={e => setLaptopPrice(e.target.value)} style={{ padding: '6px' }} />
-          </div>
-          <div>
-            <button type="submit" style={{ padding: '8px 12px', background: '#ff8c00', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add Laptop</button>
-          </div>
-        </form>
-
-        <div style={{ marginTop: '20px' }}>
-          {laptops.length === 0 ? <p>No laptops yet.</p> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {laptops.map(l => (
-                <div key={l.id} style={{ border: '1px solid #ddd', padding: '10px', borderRadius: '5px', position: 'relative' }}>
-                  <button onClick={() => handleDeleteLaptop(l.id)} style={{ position: 'absolute', right: '10px', top: '10px', background: '#dc3545', color: 'white', border: 'none', padding: '6px 8px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
-                  <strong>{l.brand} {l.model}</strong>
-                  <div>{l.specs}</div>
-                  <small style={{ color: '#333' }}>Price: {l.price}</small>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+     
 
       {/* Bottom Section: View Content Feed */}
       <section style={{ marginTop: '40px' }}>
