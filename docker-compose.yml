@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Frontend React Application
+  frontend:
+    container_name: demo-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_BASE_URL=http://localhost:5001
+      - REACT_APP_USER_API_URL=http://localhost:5002
+    depends_on:
+      - content-service
+      - user-service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Content Service - Node.js Backend
+  content-service:
+    container_name: demo-content-service
+    build:
+      context: ./backend/content
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+      - SERVICE_NAME=content-service
+      - LOG_LEVEL=info
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/demo
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/content/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # User Service - Node.js Backend
+  user-service:
+    container_name: demo-user-service
+    build:
+      context: ./backend/user
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - NODE_ENV=production
+      - PORT=5002
+      - SERVICE_NAME=user-service
+      - LOG_LEVEL=info
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/demo
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  microservices-network:
+    driver: bridge
+    name: demo-microservices
+
+
+# Usage:
+# docker-compose up -d                    # Start all services
+# docker-compose down                     # Stop all services
+# docker-compose logs -f frontend         # View logs
+# docker-compose ps                       # Check status

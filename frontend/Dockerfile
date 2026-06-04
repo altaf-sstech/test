@@ -36,11 +36,10 @@ RUN npm run build
 FROM nginx:1.26.1-alpine
 LABEL org.opencontainers.image.source="demo/frontend"
 COPY --from=build /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Ensure correct ownership and run as non-root where possible
 RUN chown -R nginx:nginx /usr/share/nginx/html
 EXPOSE 3000
 ENV NODE_ENV=production
-# Update nginx default server to listen on 3000 instead of 80
-RUN sed -i 's/listen\s\+80;/listen 3000;/' /etc/nginx/conf.d/default.conf || true
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD wget -q -O- http://localhost:3000/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]
