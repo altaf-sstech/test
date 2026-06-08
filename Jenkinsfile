@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         COMPOSE_FILE = "docker-compose.yml"
-        PROJECT_NAME = "demo-microservices"
     }
 
     stages {
@@ -41,8 +40,8 @@ pipeline {
 
         stage('Wait for Services') {
             steps {
-                // wait for containers to be up
-                bat 'timeout /t 30'
+                // Fixed wait issue (no timeout command)
+                bat 'powershell -Command "Start-Sleep -Seconds 30"'
             }
         }
 
@@ -71,12 +70,12 @@ pipeline {
         }
 
         failure {
-            echo '❌ Pipeline failed. Showing logs...'
+            echo '❌ Pipeline failed! Showing logs...'
             bat 'docker compose logs'
         }
 
         always {
-            echo '✔ Pipeline execution completed'
+            echo '✔ Pipeline completed'
         }
     }
 }
