@@ -129,7 +129,7 @@ function App() {
 
   return (
     <div style={{ padding: '30px', fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
-      <h1>Microservices Dashboard Auto check</h1>
+      <h1>Microservices Dashboard webhook check</h1>
       <hr />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '20px' }}>
