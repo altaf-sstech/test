@@ -86,7 +86,6 @@
 
 
 
-
 pipeline {
     agent any
 
@@ -162,8 +161,8 @@ pipeline {
                 echo Installing serve...
                 call npm install -g serve
 
-                echo STARTING FRONTEND
-                call pm2 start serve --name frontend -- -s build -l 3000
+                echo STARTING FRONTEND (FIXED)
+                call pm2 start npx --name frontend -- serve -s build -l 3000
 
                 echo PM2 STATUS:
                 call pm2 list
