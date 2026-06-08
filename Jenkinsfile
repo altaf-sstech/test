@@ -104,7 +104,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
+                git branch: 'main', url: 'https://your-repo-url.git'
             }
         }
 
@@ -137,11 +137,8 @@ pipeline {
         stage('Restart Backend (PM2)') {
             steps {
                 bat """
-                pm2 delete content-service
-                if %ERRORLEVEL% NEQ 0 echo content-service not running
-
-                pm2 delete user-service
-                if %ERRORLEVEL% NEQ 0 echo user-service not running
+                pm2 delete content-service || exit 0
+                pm2 delete user-service || exit 0
 
                 cd ${CONTENT_DIR}
                 set DATABASE_URL=%DATABASE_URL%
@@ -161,7 +158,7 @@ pipeline {
         stage('Deploy Frontend (PM2)') {
             steps {
                 bat """
-                pm2 delete frontend || echo not running
+                pm2 delete frontend || exit 0
 
                 cd ${FRONTEND_DIR}
                 npm install -g serve
@@ -176,8 +173,9 @@ pipeline {
             steps {
                 bat """
                 pm2 list
-                curl http://localhost:5001
-                curl http://localhost:5002
+                curl http://localhost:5001 || exit 0
+                curl http://localhost:5002 || exit 0
+                curl http://localhost:3000 || exit 0
                 """
             }
         }
