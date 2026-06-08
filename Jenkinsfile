@@ -131,7 +131,7 @@ pipeline {
             steps {
                 bat '''
                 echo Cleaning old PM2 processes...
-                cmd /c "pm2 delete all" >nul 2>&1
+                // cmd /c "pm2 delete all" >nul 2>&1
 
                 echo STARTING CONTENT SERVICE...
                 cd backend\\content
@@ -153,21 +153,23 @@ pipeline {
             }
         }
 
-        stage('Start Frontend (Serve)') {
+        stage('Start Frontend') {
             steps {
                 bat '''
-                echo Cleaning old frontend process...
-                cmd /c "taskkill /F /IM serve.exe" >nul 2>&1
-                cmd /c "taskkill /F /IM node.exe /FI "WINDOWTITLE eq serve*"" >nul 2>&1
+                echo Cleaning old frontend...
+                cmd /c "pm2 delete frontend" >nul 2>&1
 
                 cd frontend
 
-                echo Installing serve...
-                call npm install -g serve
+                echo Installing serve locally...
+                call npm install serve
 
-                echo Starting React frontend on port 3000...
+                echo Starting frontend using node (FINAL FIX)...
 
-                start "" serve -s build -l 3000
+                call pm2 start node_modules\\serve\\build\\main.js --name frontend -- -s build -l 3000
+
+                call pm2 save
+                call pm2 list
                 '''
             }
         }
