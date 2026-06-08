@@ -131,7 +131,7 @@ pipeline {
             steps {
                 bat '''
                 echo Cleaning old PM2 processes...
-                // cmd /c "pm2 delete all" >nul 2>&1
+                
 
                 echo STARTING CONTENT SERVICE...
                 cd backend\\content
@@ -157,8 +157,7 @@ pipeline {
             steps {
                 bat '''
                 echo Cleaning old frontend...
-                cmd /c "pm2 delete frontend" >nul 2>&1
-
+                
                 cd frontend
 
                 echo Installing serve locally...
