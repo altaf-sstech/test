@@ -103,9 +103,15 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('backend/content') { bat 'call npm install' }
-                dir('backend/user') { bat 'call npm install' }
-                dir('frontend') { bat 'call npm install' }
+                dir('backend/content') {
+                    bat 'call npm install'
+                }
+                dir('backend/user') {
+                    bat 'call npm install'
+                }
+                dir('frontend') {
+                    bat 'call npm install'
+                }
             }
         }
 
@@ -121,43 +127,47 @@ pipeline {
             }
         }
 
-        stage('Start Backend') {
+        stage('Start Backend (PM2)') {
             steps {
                 bat '''
-                echo Cleaning PM2...
+                echo Cleaning old PM2 processes...
                 cmd /c "pm2 delete all" >nul 2>&1
 
-                echo STARTING CONTENT SERVICE
+                echo STARTING CONTENT SERVICE...
                 cd backend\\content
                 set PORT=5001
                 set DATABASE_URL=%DATABASE_URL%
                 call pm2 start index.js --name content-service
 
-                echo STARTING USER SERVICE
+                echo STARTING USER SERVICE...
                 cd ..\\user
                 set PORT=5002
                 set DATABASE_URL=%DATABASE_URL%
                 call pm2 start index.js --name user-service
 
-                pm2 save
-                pm2 list
+                echo PM2 STATUS:
+                call pm2 list
+
+                call pm2 save
                 '''
             }
         }
 
-        stage('Start Frontend') {
+        stage('Start Frontend (Serve)') {
             steps {
                 bat '''
-                echo Killing old frontend...
-                taskkill /F /IM node.exe >nul 2>&1 || echo none
+                echo Cleaning old frontend process...
+                cmd /c "taskkill /F /IM serve.exe" >nul 2>&1
+                cmd /c "taskkill /F /IM node.exe /FI "WINDOWTITLE eq serve*"" >nul 2>&1
 
                 cd frontend
 
                 echo Installing serve...
                 call npm install -g serve
 
-                echo Starting frontend...
-                start cmd /c "serve -s build -l 3000"
+                echo Starting React frontend on port 3000...
+
+                start "" serve -s build -l 3000
                 '''
             }
         }
@@ -184,6 +194,10 @@ pipeline {
         failure {
             echo '❌ Deployment FAILED'
         }
+        always {
+            echo '✔ Pipeline Completed'
+        }
     }
 }
+
 
