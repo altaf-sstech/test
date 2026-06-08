@@ -13,7 +13,6 @@ const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '::1'];
 const IS_LOCAL = LOCAL_HOSTNAMES.includes(window.location.hostname);
 
 export const API_BASE = {
-  USER: IS_LOCAL ? 'http://localhost:5002' : 'http://13.127.220.170',
-  CONTENT: IS_LOCAL ? 'http://localhost:5001' : 'http://13.127.220.170',
-  LAPTOP: IS_LOCAL ? 'http://localhost:3003' : 'http://13.127.220.170',
+  USER: IS_LOCAL ? 'http://localhost:5002' : 'http://192.168.1.31:5002',
+  CONTENT: IS_LOCAL ? 'http://localhost:5001' : 'http://192.168.1.31:5001',
 };
