@@ -115,14 +115,36 @@ pipeline {
             }
         }
 
+        // stage('Build Frontend') {
+        //     steps {
+        //         dir('frontend') {
+        //             bat '''
+        //             set REACT_APP_API_BASE_URL=http://localhost:5001
+        //             set REACT_APP_USER_API_URL=http://localhost:5002
+        //             call npm run build
+        //             '''
+        //         }
+        //     }
+        // }
+
+
         stage('Build Frontend') {
             steps {
-                dir('frontend') {
-                    bat '''
-                    set REACT_APP_API_BASE_URL=http://localhost:5001
-                    set REACT_APP_USER_API_URL=http://localhost:5002
-                    call npm run build
-                    '''
+                ('frontend') {
+                bat '''
+                echo Cleaning old build folder...
+
+                /c "rmdir /s /q build" >nul 2>&1 || echo no old build
+
+                echo Setting environment...
+
+                REACT_APP_API_BASE_URL=http://localhost:5001
+                set REACT_APP_USER_API_URL=http://localhost:5002
+
+                echo Building React app...
+
+                call npm run build
+                '''
                 }
             }
         }
@@ -172,6 +194,9 @@ pipeline {
                 '''
             }
         }
+
+
+
 
         stage('Verify') {
             steps {
