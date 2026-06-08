@@ -103,15 +103,9 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('backend/content') {
-                    bat 'call npm install'
-                }
-                dir('backend/user') {
-                    bat 'call npm install'
-                }
-                dir('frontend') {
-                    bat 'call npm install'
-                }
+                dir('backend/content') { bat 'call npm install' }
+                dir('backend/user') { bat 'call npm install' }
+                dir('frontend') { bat 'call npm install' }
             }
         }
 
@@ -127,7 +121,7 @@ pipeline {
             }
         }
 
-        stage('Start Backend (PM2)') {
+        stage('Start Backend') {
             steps {
                 bat '''
                 echo Cleaning PM2...
@@ -145,24 +139,24 @@ pipeline {
                 set DATABASE_URL=%DATABASE_URL%
                 call pm2 start index.js --name user-service
 
-                call pm2 save
-                call pm2 list
+                pm2 save
+                pm2 list
                 '''
             }
         }
 
-        stage('Start Frontend (NO PM2)') {
+        stage('Start Frontend') {
             steps {
                 bat '''
-                echo Killing old frontend processes...
-                taskkill /F /IM node.exe >nul 2>&1 || echo no old process
+                echo Killing old frontend...
+                taskkill /F /IM node.exe >nul 2>&1 || echo none
 
                 cd frontend
 
                 echo Installing serve...
                 call npm install -g serve
 
-                echo Starting React frontend on port 3000...
+                echo Starting frontend...
                 start cmd /c "serve -s build -l 3000"
                 '''
             }
@@ -192,6 +186,4 @@ pipeline {
         }
     }
 }
-``
-
 
