@@ -110,15 +110,9 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir("${CONTENT_DIR}") {
-                    bat 'npm install'
-                }
-                dir("${USER_DIR}") {
-                    bat 'npm install'
-                }
-                dir("${FRONTEND_DIR}") {
-                    bat 'npm install'
-                }
+                dir("${CONTENT_DIR}") { bat 'npm install' }
+                dir("${USER_DIR}") { bat 'npm install' }
+                dir("${FRONTEND_DIR}") { bat 'npm install' }
             }
         }
 
@@ -137,18 +131,23 @@ pipeline {
         stage('Restart Backend (PM2)') {
             steps {
                 bat """
-                pm2 delete content-service || exit 0
-                pm2 delete user-service || exit 0
+                echo Cleaning old PM2 processes...
+                pm2 delete all || exit 0
 
+                echo Starting Content Service...
                 cd ${CONTENT_DIR}
-                set DATABASE_URL=%DATABASE_URL%
                 set PORT=5001
+                set DATABASE_URL=%DATABASE_URL%
                 pm2 start index.js --name content-service
 
+                echo Starting User Service...
                 cd ../user
-                set DATABASE_URL=%DATABASE_URL%
                 set PORT=5002
+                set DATABASE_URL=%DATABASE_URL%
                 pm2 start index.js --name user-service
+
+                echo Current PM2 processes:
+                pm2 list
 
                 pm2 save
                 """
@@ -158,11 +157,19 @@ pipeline {
         stage('Deploy Frontend (PM2)') {
             steps {
                 bat """
+                echo Cleaning old frontend...
                 pm2 delete frontend || exit 0
 
                 cd ${FRONTEND_DIR}
+
+                echo Installing serve...
                 npm install -g serve
+
+                echo Starting React frontend...
                 pm2 start serve --name frontend -- -s build -l 3000
+
+                echo Current PM2 processes:
+                pm2 list
 
                 pm2 save
                 """
@@ -172,10 +179,15 @@ pipeline {
         stage('Verify Services') {
             steps {
                 bat """
+                echo Verifying PM2 processes...
                 pm2 list
-                curl http://localhost:5001 || exit 0
-                curl http://localhost:5002 || exit 0
-                curl http://localhost:3000 || exit 0
+
+                echo Checking Backend APIs...
+                curl http://localhost:5001 || echo Content API failed
+                curl http://localhost:5002 || echo User API failed
+
+                echo Checking Frontend...
+                curl http://localhost:3000 || echo Frontend failed
                 """
             }
         }
