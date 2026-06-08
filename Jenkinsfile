@@ -104,7 +104,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://your-repo-url.git'
+                git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
             }
         }
 
