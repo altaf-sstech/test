@@ -161,8 +161,9 @@ pipeline {
                 echo Installing serve...
                 call npm install -g serve
 
-                echo STARTING FRONTEND (FIXED)
-                call pm2 start npx --name frontend -- serve -s build -l 3000
+                echo STARTING FRONTEND (FINAL FIX)
+
+                call pm2 start "C:\\Users\\Team\\AppData\\Roaming\\npm\\serve.cmd" --name frontend -- -s build -l 3000
 
                 echo PM2 STATUS:
                 call pm2 list
