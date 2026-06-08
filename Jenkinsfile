@@ -87,7 +87,6 @@
 
 
 
-
 pipeline {
     agent any
 
@@ -130,8 +129,7 @@ pipeline {
             steps {
                 bat '''
                 echo Cleaning PM2...
-                pm2 delete all >nul 2>&1
-                echo Ignore any error above
+                cmd /c "pm2 delete all" >nul 2>&1
 
                 echo STARTING CONTENT SERVICE
                 cd backend\\content
@@ -156,8 +154,8 @@ pipeline {
         stage('Start Frontend') {
             steps {
                 bat '''
-                echo Cleaning frontend...
-                pm2 delete frontend >nul 2>&1
+                echo Cleaning old frontend...
+                cmd /c "pm2 delete frontend" >nul 2>&1
 
                 cd frontend
 
@@ -178,10 +176,10 @@ pipeline {
         stage('Verify') {
             steps {
                 bat '''
-                echo ==== PM2 STATUS ====
+                echo ===== PM2 STATUS =====
                 pm2 list
 
-                echo ==== CHECK PORTS ====
+                echo ===== PORT CHECK =====
                 netstat -ano | findstr :3000
                 netstat -ano | findstr :5001
                 netstat -ano | findstr :5002
@@ -199,4 +197,5 @@ pipeline {
         }
     }
 }
+
 
