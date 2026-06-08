@@ -84,6 +84,10 @@
 
 
 
+
+
+
+
 pipeline {
     agent any
 
@@ -139,12 +143,12 @@ pipeline {
                 cd ${CONTENT_DIR}
                 set DATABASE_URL=%DATABASE_URL%
                 set PORT=5001
-                pm2 start server.js --name content-service
+                pm2 start index.js --name content-service
 
                 cd ../user
                 set DATABASE_URL=%DATABASE_URL%
                 set PORT=5002
-                pm2 start server.js --name user-service
+                pm2 start index.js --name user-service
 
                 pm2 save
                 """
@@ -165,10 +169,13 @@ pipeline {
             }
         }
 
-        stage('Health Check') {
+        stage('Verify Services') {
             steps {
-                bat 'curl http://localhost:5001/content/health'
-                bat 'curl http://localhost:5002/auth/health'
+                bat """
+                pm2 list
+                curl http://localhost:5001
+                curl http://localhost:5002
+                """
             }
         }
     }
