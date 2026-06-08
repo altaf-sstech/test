@@ -91,9 +91,6 @@ pipeline {
 
     environment {
         DATABASE_URL = 'postgres://myuser:mypassword@localhost:5432/mydb'
-        CONTENT_DIR = 'backend/content'
-        USER_DIR = 'backend/user'
-        FRONTEND_DIR = 'frontend'
     }
 
     stages {
@@ -106,15 +103,21 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir("${CONTENT_DIR}") { bat 'call npm install' }
-                dir("${USER_DIR}") { bat 'call npm install' }
-                dir("${FRONTEND_DIR}") { bat 'call npm install' }
+                dir('backend/content') {
+                    bat 'call npm install'
+                }
+                dir('backend/user') {
+                    bat 'call npm install'
+                }
+                dir('frontend') {
+                    bat 'call npm install'
+                }
             }
         }
 
         stage('Build Frontend') {
             steps {
-                dir("${FRONTEND_DIR}") {
+                dir('frontend') {
                     bat '''
                     set REACT_APP_API_BASE_URL=http://localhost:5001
                     set REACT_APP_USER_API_URL=http://localhost:5002
@@ -124,7 +127,7 @@ pipeline {
             }
         }
 
-        stage('Start Backend') {
+        stage('Start Backend (PM2)') {
             steps {
                 bat '''
                 echo Cleaning PM2...
@@ -142,33 +145,25 @@ pipeline {
                 set DATABASE_URL=%DATABASE_URL%
                 call pm2 start index.js --name user-service
 
-                echo PM2 STATUS:
-                call pm2 list
-
                 call pm2 save
+                call pm2 list
                 '''
             }
         }
 
-        stage('Start Frontend') {
+        stage('Start Frontend (NO PM2)') {
             steps {
                 bat '''
-                echo Cleaning old frontend...
-                cmd /c "pm2 delete frontend" >nul 2>&1
+                echo Killing old frontend processes...
+                taskkill /F /IM node.exe >nul 2>&1 || echo no old process
 
                 cd frontend
 
                 echo Installing serve...
                 call npm install -g serve
 
-                echo STARTING FRONTEND (FINAL FIX)
-
-                call pm2 start "C:\\Users\\Team\\AppData\\Roaming\\npm\\serve.cmd" --name frontend -- -s build -l 3000
-
-                echo PM2 STATUS:
-                call pm2 list
-
-                call pm2 save
+                echo Starting React frontend on port 3000...
+                start cmd /c "serve -s build -l 3000"
                 '''
             }
         }
@@ -197,5 +192,6 @@ pipeline {
         }
     }
 }
+``
 
 
