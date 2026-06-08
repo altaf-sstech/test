@@ -102,7 +102,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                 git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
+                git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
             }
         }
 
@@ -129,7 +129,9 @@ pipeline {
         stage('Start Backend') {
             steps {
                 bat '''
-                pm2 delete all 2>nul
+                echo Cleaning PM2...
+                pm2 delete all >nul 2>&1
+                echo Ignore any error above
 
                 echo STARTING CONTENT SERVICE
                 cd backend\\content
@@ -143,8 +145,10 @@ pipeline {
                 set DATABASE_URL=%DATABASE_URL%
                 call pm2 start index.js --name user-service
 
-                call pm2 save
+                echo PM2 STATUS:
                 call pm2 list
+
+                call pm2 save
                 '''
             }
         }
@@ -152,18 +156,21 @@ pipeline {
         stage('Start Frontend') {
             steps {
                 bat '''
-                pm2 delete frontend 2>nul
+                echo Cleaning frontend...
+                pm2 delete frontend >nul 2>&1
 
                 cd frontend
 
-                echo INSTALLING SERVE
+                echo Installing serve...
                 call npm install -g serve
 
                 echo STARTING FRONTEND
                 call pm2 start serve --name frontend -- -s build -l 3000
 
-                call pm2 save
+                echo PM2 STATUS:
                 call pm2 list
+
+                call pm2 save
                 '''
             }
         }
@@ -192,3 +199,4 @@ pipeline {
         }
     }
 }
+
