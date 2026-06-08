@@ -92,9 +92,7 @@ pipeline {
     agent any
 
     environment {
-        NODE_ENV = 'production'
         DATABASE_URL = 'postgres://myuser:mypassword@localhost:5432/mydb'
-
         CONTENT_DIR = 'backend/content'
         USER_DIR = 'backend/user'
         FRONTEND_DIR = 'frontend'
@@ -102,103 +100,95 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
+                 git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                dir("${CONTENT_DIR}") { bat 'npm install' }
-                dir("${USER_DIR}") { bat 'npm install' }
-                dir("${FRONTEND_DIR}") { bat 'npm install' }
+                dir("${CONTENT_DIR}") { bat 'call npm install' }
+                dir("${USER_DIR}") { bat 'call npm install' }
+                dir("${FRONTEND_DIR}") { bat 'call npm install' }
             }
         }
 
-        stage('Build React App') {
+        stage('Build Frontend') {
             steps {
                 dir("${FRONTEND_DIR}") {
-                    bat """
+                    bat '''
                     set REACT_APP_API_BASE_URL=http://localhost:5001
                     set REACT_APP_USER_API_URL=http://localhost:5002
-                    npm run build
-                    """
+                    call npm run build
+                    '''
                 }
             }
         }
 
-        stage('Restart Backend (PM2)') {
+        stage('Start Backend') {
             steps {
-                bat """
-                echo Cleaning old PM2 processes...
-                pm2 delete all || exit 0
+                bat '''
+                pm2 delete all 2>nul
 
-                echo Starting Content Service...
-                cd ${CONTENT_DIR}
+                echo STARTING CONTENT SERVICE
+                cd backend\\content
                 set PORT=5001
                 set DATABASE_URL=%DATABASE_URL%
-                pm2 start index.js --name content-service
+                call pm2 start index.js --name content-service
 
-                echo Starting User Service...
-                cd ../user
+                echo STARTING USER SERVICE
+                cd ..\\user
                 set PORT=5002
                 set DATABASE_URL=%DATABASE_URL%
-                pm2 start index.js --name user-service
+                call pm2 start index.js --name user-service
 
-                echo Current PM2 processes:
-                pm2 list
-
-                pm2 save
-                """
+                call pm2 save
+                call pm2 list
+                '''
             }
         }
 
-        stage('Deploy Frontend (PM2)') {
+        stage('Start Frontend') {
             steps {
-                bat """
-                echo Cleaning old frontend...
-                pm2 delete frontend || exit 0
+                bat '''
+                pm2 delete frontend 2>nul
 
-                cd ${FRONTEND_DIR}
+                cd frontend
 
-                echo Installing serve...
-                npm install -g serve
+                echo INSTALLING SERVE
+                call npm install -g serve
 
-                echo Starting React frontend...
-                pm2 start serve --name frontend -- -s build -l 3000
+                echo STARTING FRONTEND
+                call pm2 start serve --name frontend -- -s build -l 3000
 
-                echo Current PM2 processes:
-                pm2 list
-
-                pm2 save
-                """
+                call pm2 save
+                call pm2 list
+                '''
             }
         }
 
-        stage('Verify Services') {
+        stage('Verify') {
             steps {
-                bat """
-                echo Verifying PM2 processes...
+                bat '''
+                echo ==== PM2 STATUS ====
                 pm2 list
 
-                echo Checking Backend APIs...
-                curl http://localhost:5001 || echo Content API failed
-                curl http://localhost:5002 || echo User API failed
-
-                echo Checking Frontend...
-                curl http://localhost:3000 || echo Frontend failed
-                """
+                echo ==== CHECK PORTS ====
+                netstat -ano | findstr :3000
+                netstat -ano | findstr :5001
+                netstat -ano | findstr :5002
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment Successful!'
+            echo '✅ Deployment SUCCESS'
         }
         failure {
-            echo '❌ Deployment Failed!'
+            echo '❌ Deployment FAILED'
         }
     }
 }
