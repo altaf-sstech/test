@@ -137,8 +137,11 @@ pipeline {
         stage('Restart Backend (PM2)') {
             steps {
                 bat """
-                pm2 delete content-service || echo not running
-                pm2 delete user-service || echo not running
+                pm2 delete content-service
+                if %ERRORLEVEL% NEQ 0 echo content-service not running
+
+                pm2 delete user-service
+                if %ERRORLEVEL% NEQ 0 echo user-service not running
 
                 cd ${CONTENT_DIR}
                 set DATABASE_URL=%DATABASE_URL%
