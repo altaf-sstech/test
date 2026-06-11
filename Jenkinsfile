@@ -1,333 +1,325 @@
+// pipeline {
+//     agent any
+
+//     environment {
+//         COMPOSE_FILE = "docker-compose.yml"
+//     }
+
+//     stages {
+
+//         stage('Checkout Code') {
+//             steps {
+//                 git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
+//             }
+//         }
+
+//         stage('Verify Docker Setup') {
+//             steps {
+//                 bat 'docker version'
+//                 bat 'docker compose version'
+//             }
+//         }
+
+//         stage('Build Images') {
+//             steps {
+//                 bat 'docker compose -f %COMPOSE_FILE% build'
+//             }
+//         }
+
+//         stage('Stop Old Containers') {
+//             steps {
+//                 bat 'docker compose -f %COMPOSE_FILE% down'
+//             }
+//         }
+
+//         stage('Start Services') {
+//             steps {
+//                 bat 'docker compose -f %COMPOSE_FILE% up -d'
+//             }
+//         }
+
+//         stage('Wait for Services') {
+//             steps {
+//                 // Fixed wait issue (no timeout command)
+//                 bat 'powershell -Command "Start-Sleep -Seconds 30"'
+//             }
+//         }
+
+//         stage('Health Check') {
+//             steps {
+//                 bat '''
+//                 echo Checking services...
+
+//                 curl -f http://localhost:3000 || exit 1
+//                 curl -f http://localhost:5001/content/health || exit 1
+//                 curl -f http://localhost:5002/auth/health || exit 1
+//                 '''
+//             }
+//         }
+
+//         stage('Show Running Containers') {
+//             steps {
+//                 bat 'docker ps'
+//             }
+//         }
+//     }
+
+//     post {
+//         success {
+//             echo '✅ CI/CD Pipeline executed successfully!'
+//         }
+
+//         failure {
+//             echo '❌ Pipeline failed! Showing logs...'
+//             bat 'docker compose logs'
+//         }
+
+//         always {
+//             echo '✔ Pipeline completed'
+//         }
+//     }
+// }
+
+
+
+
+
+
+
+// pipeline {
+//     agent any
+
+//     environment {
+//         DATABASE_URL = 'postgres://myuser:mypassword@localhost:5432/mydb'
+//     }
+
+//     stages {
+
+//         stage('Checkout') {
+//             steps {
+//                 git branch: 'test', url: 'https://github.com/altaf-sstech/test.git'
+//             }
+//         }
+
+//         stage('Install Dependencies') {
+//             steps {
+//                 dir('backend/content') {
+//                     bat 'call npm install'
+//                 }
+//                 dir('backend/user') {
+//                     bat 'call npm install'
+//                 }
+//                 dir('frontend') {
+//                     bat 'call npm install'
+//                 }
+//             }
+//         }
+
+//         // stage('Build Frontend') {
+//         //     steps {
+//         //         dir('frontend') {
+//         //             bat '''
+//         //             set REACT_APP_API_BASE_URL=http://localhost:5001
+//         //             set REACT_APP_USER_API_URL=http://localhost:5002
+//         //             call npm run build
+//         //             '''
+//         //         }
+//         //     }
+//         // }
+
+
+//         stage('Build Frontend') {
+//             steps {
+//                 ('frontend') {
+//                 bat '''
+//                 echo Cleaning old build folder...
+
+//                 /c "rmdir /s /q build" >nul 2>&1 || echo no old build
+
+//                 echo Setting environment...
+
+//                 REACT_APP_API_BASE_URL=http://localhost:5001
+//                 set REACT_APP_USER_API_URL=http://localhost:5002
+
+//                 echo Building React app...
+
+//                 call npm run build
+//                 '''
+//                 }
+//             }
+//         }
+
+//         stage('Start Backend (PM2)') {
+//             steps {
+//                 bat '''
+//                 echo Cleaning old PM2 processes...
+                
+
+//                 echo STARTING CONTENT SERVICE...
+//                 cd backend\\content
+//                 set PORT=5001
+//                 set DATABASE_URL=%DATABASE_URL%
+//                 call pm2 start index.js --name content-service
+
+//                 echo STARTING USER SERVICE...
+//                 cd ..\\user
+//                 set PORT=5002
+//                 set DATABASE_URL=%DATABASE_URL%
+//                 call pm2 start index.js --name user-service
+
+//                 echo PM2 STATUS:
+//                 call pm2 list
+
+//                 call pm2 save
+//                 '''
+//             }
+//         }
+
+//         stage('Start Frontend') {
+//             steps {
+//                 bat '''
+//                 echo Cleaning old frontend...
+                
+//                 cd frontend
+
+//                 echo Installing serve locally...
+//                 call npm install serve
+
+//                 echo Starting frontend using node (FINAL FIX)...
+
+//                 call pm2 start node_modules\\serve\\build\\main.js --name frontend -- -s build -l 3000
+
+//                 call pm2 save
+//                 call pm2 list
+//                 '''
+//             }
+//         }
+
+
+
+
+//         stage('Verify') {
+//             steps {
+//                 bat '''
+//                 echo ===== PM2 STATUS =====
+//                 pm2 list
+
+//                 echo ===== PORT CHECK =====
+//                 netstat -ano | findstr :3000
+//                 netstat -ano | findstr :5001
+//                 netstat -ano | findstr :5002
+//                 '''
+//             }
+//         }
+//     }
+
+//     post {
+//         success {
+//             echo '✅ Deployment SUCCESS'
+//         }
+//         failure {
+//             echo '❌ Deployment FAILED'
+//         }
+//         always {
+//             echo '✔ Pipeline Completed'
+//         }
+//     }
+// }
+
+
+
+
+
+
+
 pipeline {
     agent any
-    
+
     environment {
-        GIT_SHORT_SHA       = "${env.GIT_COMMIT ? env.GIT_COMMIT.take(7) : 'latest'}"
-        NODE_ENV            = 'production'
-        PATH                = "${env.PATH};C:\\Program Files\\nodejs"
-        COMPOSE_FILE        = 'docker-compose.yml'
-        DEPLOYMENT_DIR      = 'C:\\deployment'
-        LOCAL_DEPLOYMENT    = 'true'
+        DOCKER_USER   = 'altaf7258'
+        EC2_PUBLIC_IP = '13.239.134.203'
+        APP_DIR       = '/home/ubuntu/app'
     }
-    
-    options {
-        timeout(time: 60, unit: 'MINUTES')
-        timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '20'))
-        disableConcurrentBuilds()
-    }
-    
+
     stages {
-        stage('Pre-Flight Checks') {
+
+        stage('Checkout Code') {
             steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '       MICROSERVICES ORCHESTRATOR - PRE-FLIGHT CHECKS      '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo.
-                    echo Checking system requirements...
-                    echo.
-                    
-                    echo ✓ Node Version:
-                    node --version
-                    echo.
-                    
-                    echo ✓ NPM Version:
-                    npm --version
-                    echo.
-                    
-                    echo ✓ Docker Version:
-                    docker --version
-                    echo.
-                    
-                    echo ✓ Docker Compose Version:
-                    docker-compose --version
-                    echo.
-                    
-                    echo ✓ Git Version:
-                    git --version
-                    echo.
-                    
-                    echo All pre-flight checks passed!
+                git branch: 'test',
+                url: 'https://github.com/altaf-sstech/test.git'
+            }
+        }
+
+        stage('Login to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
+                    sh '''
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Build & Push User Service') {
+            steps {
+                sh '''
+                docker build -t $DOCKER_USER/demo-user-service:latest backend/user
+                docker push $DOCKER_USER/demo-user-service:latest
                 '''
             }
         }
-        
-        stage('Checkout Source Code') {
+
+        stage('Build & Push Content Service') {
             steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '              CHECKING OUT SOURCE CODE                  '
-                echo '════════════════════════════════════════════════════════'
-                checkout scm
-                bat 'git log --oneline -10'
-            }
-        }
-        
-        stage('Build & Test Services (Parallel)') {
-            parallel {
-                stage('Build Frontend') {
-                    steps {
-                        echo '🔨 Building Frontend Service...'
-                        dir('frontend') {
-                            bat '''
-                                echo Installing dependencies...
-                                npm install
-                                
-                                echo Running tests...
-                                npm test -- --watchAll=false --passWithNoTests || exit 0
-                                
-                                echo Building production bundle...
-                                npm run build
-                                
-                                echo Frontend build complete!
-                            '''
-                        }
-                    }
-                }
-                
-                stage('Build Content Service') {
-                    steps {
-                        echo '🔨 Building Content Service...'
-                        dir('backend/content') {
-                            bat '''
-                                echo Installing dependencies...
-                                npm install --production
-                                
-                                echo Running tests...
-                                npm test || exit 0
-                                
-                                echo Content service build complete!
-                            '''
-                        }
-                    }
-                }
-                
-                stage('Build User Service') {
-                    steps {
-                        echo '🔨 Building User Service...'
-                        dir('backend/user') {
-                            bat '''
-                                echo Installing dependencies...
-                                npm install --production
-                                
-                                echo Running tests...
-                                npm test || exit 0
-                                
-                                echo User service build complete!
-                            '''
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Prepare Local Deployment') {
-            steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '      PREPARING LOCAL DEPLOYMENT (NO DOCKER HUB)          '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo Creating deployment directory: %DEPLOYMENT_DIR%
-                    if not exist %DEPLOYMENT_DIR% mkdir %DEPLOYMENT_DIR%
-                    echo Local deployment configured - images will be built locally
+                sh '''
+                docker build -t $DOCKER_USER/demo-content-service:latest backend/content
+                docker push $DOCKER_USER/demo-content-service:latest
                 '''
             }
         }
-        
-        stage('Build Docker Images (Parallel)') {
-            parallel {
-                stage('Build Frontend Image') {
-                    steps {
-                        echo '🐳 Building Frontend Docker Image...'
-                        bat '''
-                            docker build -t demo-frontend:latest ./frontend
-                            echo Frontend image built successfully!
-                            docker images | findstr demo-frontend
-                        '''
-                    }
-                }
-                
-                stage('Build Content Service Image') {
-                    steps {
-                        echo '🐳 Building Content Service Docker Image...'
-                        bat '''
-                            docker build -t demo-content-service:latest ./backend/content
-                            echo Content service image built successfully!
-                            docker images | findstr demo-content-service
-                        '''
-                    }
-                }
-                
-                stage('Build User Service Image') {
-                    steps {
-                        echo '🐳 Building User Service Docker Image...'
-                        bat '''
-                            docker build -t demo-user-service:latest ./backend/user
-                            echo User service image built successfully!
-                            docker images | findstr demo-user-service
-                        '''
-                    }
-                }
-            }
-        }
-        
-        stage('Verify Local Images') {
+
+        stage('Build & Push Frontend') {
             steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '        VERIFYING LOCALLY BUILT DOCKER IMAGES           '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo.
-                    echo All built Docker images:
-                    docker images | findstr demo-
-                    
-                    echo.
-                    echo Images ready for local deployment!
+                sh '''
+                docker build -t $DOCKER_USER/demo-frontend:latest frontend
+                docker push $DOCKER_USER/demo-frontend:latest
                 '''
             }
         }
-        
-        stage('Deploy to Local Environment') {
-            when {
-                branch 'main'
-            }
+
+        stage('Deploy to AWS EC2') {
             steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '      DEPLOYING TO LOCAL WINDOWS ENVIRONMENT            '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo Creating deployment directories...
-                    if not exist %DEPLOYMENT_DIR% mkdir %DEPLOYMENT_DIR%
-                    
-                    echo.
-                    echo Stopping existing containers...
-                    docker-compose -f %COMPOSE_FILE% down || echo No running containers
-                    
-                    echo.
-                    echo Removing old images...
-                    docker image prune -f --filter "until=72h" || echo Cleanup completed
-                    
-                    echo.
-                    echo Starting all services with docker-compose...
-                    docker-compose -f %COMPOSE_FILE% up -d
-                    
-                    echo.
-                    echo Deployment completed! Waiting for services to stabilize...
-                    timeout /t 10 /nobreak
-                '''
-            }
-        }
-        
-        stage('Health Checks') {
-            when {
-                branch 'main'
-            }
-            steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '           PERFORMING SERVICE HEALTH CHECKS             '
-                echo '════════════════════════════════════════════════════════'
-                script {
-                    retry(5) {
-                        bat '''
-                            echo.
-                            echo ✓ Frontend Health Check...
-                            curl -f http://localhost:3000 || exit /b 1
-                            
-                            echo.
-                            echo ✓ Content Service Health Check...
-                            curl -f http://localhost:5001/health || exit /b 1
-                            
-                            echo.
-                            echo ✓ User Service Health Check...
-                            curl -f http://localhost:5002/health || exit /b 1
-                            
-                            echo.
-                            echo All health checks passed!
-                        '''
-                    }
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'KEY_FILE'
+                )]) {
+                    sh '''
+                    chmod 600 $KEY_FILE
+
+                    ssh -i $KEY_FILE -o StrictHostKeyChecking=no ubuntu@$EC2_PUBLIC_IP "
+                    cd $APP_DIR &&
+                    docker compose pull &&
+                    docker compose up -d --force-recreate
+                    "
+                    '''
                 }
-            }
-        }
-        
-        stage('Service Status & Logs') {
-            when {
-                branch 'main'
-            }
-            steps {
-                echo '════════════════════════════════════════════════════════'
-                echo '           DOCKER CONTAINER STATUS                      '
-                echo '════════════════════════════════════════════════════════'
-                bat '''
-                    echo Running containers:
-                    docker-compose -f %COMPOSE_FILE% ps
-                    
-                    echo.
-                    echo Service URLs:
-                    echo Frontend:       http://localhost:3000
-                    echo Content API:    http://localhost:5001
-                    echo User API:       http://localhost:5002
-                    echo SonarQube:      http://localhost:9000
-                '''
-            }
-        }
-        
-        stage('Cleanup & Optimization') {
-            steps {
-                echo '🧹 Cleaning up build artifacts...'
-                bat '''
-                    echo Removing old unused images (> 24 hours)...
-                    docker image prune -f --filter "until=24h" || echo No images to prune
-                    
-                    echo Listing active images:
-                    docker images | findstr demo-
-                '''
             }
         }
     }
-    
+
     post {
         always {
-            echo '════════════════════════════════════════════════════════'
-            echo '              PIPELINE COMPLETED - LOCAL DEPLOYMENT      '
-            echo '════════════════════════════════════════════════════════'
-            
-            script {
-                echo 'Build completed at: ' + new Date().format('yyyy-MM-dd HH:mm:ss')
-            }
+            sh "docker logout"
         }
-        
         success {
-            echo '''
-╔════════════════════════════════════════════╗
-║    ✓ MICROSERVICES DEPLOYMENT SUCCESSFUL   ║
-╚════════════════════════════════════════════╝
-
-Services deployed and running:
-  • Frontend:        http://localhost:3000
-  • Content API:     http://localhost:5001
-  • User API:        http://localhost:5002
-  
-Check docker-compose logs:
-  docker-compose logs -f
-            '''
+            echo "✅ Deployment successful!"
         }
-        
         failure {
-            echo '''
-╔════════════════════════════════════════════╗
-║      ✗ DEPLOYMENT FAILED                   ║
-╚════════════════════════════════════════════╝
-
-Troubleshooting:
-  1. Check Jenkins console output above
-  2. View service logs: docker-compose logs
-  3. Verify ports availability: netstat -ano
-  4. Check Docker daemon status
-            '''
-        }
-        
-        unstable {
-            echo '⚠ Pipeline completed with warnings'
+            echo "❌ Deployment failed!"
         }
     }
 }
