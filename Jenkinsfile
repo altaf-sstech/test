@@ -243,7 +243,6 @@ pipeline {
 
     stages {
 
-        // ✅ NEW STAGE: Pull code from GitHub
         stage('Checkout Code') {
             steps {
                 git branch: 'test',
@@ -258,8 +257,8 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    bat '''
-                    echo %PASS% | docker login -u %USER% --password-stdin
+                    sh '''
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
                     '''
                 }
             }
@@ -267,27 +266,27 @@ pipeline {
 
         stage('Build & Push User Service') {
             steps {
-                bat '''
-                docker build -t %DOCKER_USER%/demo-user-service:latest backend/user
-                docker push %DOCKER_USER%/demo-user-service:latest
+                sh '''
+                docker build -t $DOCKER_USER/demo-user-service:latest backend/user
+                docker push $DOCKER_USER/demo-user-service:latest
                 '''
             }
         }
 
         stage('Build & Push Content Service') {
             steps {
-                bat '''
-                docker build -t %DOCKER_USER%/demo-content-service:latest backend/content
-                docker push %DOCKER_USER%/demo-content-service:latest
+                sh '''
+                docker build -t $DOCKER_USER/demo-content-service:latest backend/content
+                docker push $DOCKER_USER/demo-content-service:latest
                 '''
             }
         }
 
         stage('Build & Push Frontend') {
             steps {
-                bat '''
-                docker build -t %DOCKER_USER%/demo-frontend:latest frontend
-                docker push %DOCKER_USER%/demo-frontend:latest
+                sh '''
+                docker build -t $DOCKER_USER/demo-frontend:latest frontend
+                docker push $DOCKER_USER/demo-frontend:latest
                 '''
             }
         }
@@ -298,15 +297,14 @@ pipeline {
                     credentialsId: 'ec2-ssh-key',
                     keyFileVariable: 'KEY_FILE'
                 )]) {
-                    bat '''
-                    @echo off
+                    sh '''
+                    chmod 600 $KEY_FILE
 
-                    icacls "%KEY_FILE%" /inheritance:r /grant:r "%USERNAME%:F"
-
-                    ssh -i "%KEY_FILE%" -o StrictHostKeyChecking=no ubuntu@%EC2_PUBLIC_IP% ^
-                    "cd %APP_DIR% && \
-                    docker compose pull && \
-                    docker compose up -d --force-recreate"
+                    ssh -i $KEY_FILE -o StrictHostKeyChecking=no ubuntu@$EC2_PUBLIC_IP "
+                    cd $APP_DIR &&
+                    docker compose pull &&
+                    docker compose up -d --force-recreate
+                    "
                     '''
                 }
             }
@@ -315,7 +313,13 @@ pipeline {
 
     post {
         always {
-            bat "docker logout"
+            sh "docker logout"
+        }
+        success {
+            echo "✅ Deployment successful!"
+        }
+        failure {
+            echo "❌ Deployment failed!"
         }
     }
 }
