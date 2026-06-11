@@ -12,7 +12,12 @@
 const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '::1'];
 const IS_LOCAL = LOCAL_HOSTNAMES.includes(window.location.hostname);
 
+// export const API_BASE = {
+//   USER: IS_LOCAL ? 'http://localhost:5002' : 'http://http://13.239.134.203/:5002',
+//   CONTENT: IS_LOCAL ? 'http://localhost:5001' : 'http://http://13.239.134.203/:5001',
+// };
+
 export const API_BASE = {
-  USER: IS_LOCAL ? 'http://localhost:5002' : 'http://http://13.239.134.203/:5002',
-  CONTENT: IS_LOCAL ? 'http://localhost:5001' : 'http://http://13.239.134.203/:5001',
+  USER: "/api/users",
+  CONTENT: "/api/content",
 };
